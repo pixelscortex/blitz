@@ -669,13 +669,41 @@ impl taffy::LayoutGridContainer for BaseDocument {
     }
 }
 
+/// Taffy rounds to integer units. Present device-pixel geometry to its rounding
+/// pass, then convert the result back to the CSS pixels used by layout and paint.
+/// Otherwise thin borders snapped by Stylo can collapse at fractional scales.
+fn scale_layout(mut layout: Layout, scale: f32) -> Layout {
+    layout.location = layout.location.map(|value| value * scale);
+    layout.size = layout.size.map(|value| value * scale);
+    layout.scrollbar_size = layout.scrollbar_size.map(|value| value * scale);
+    layout.scrollable_overflow_rect = layout.scrollable_overflow_rect.map(|value| value * scale);
+    layout.border = layout.border.map(|value| value * scale);
+    layout.padding = layout.padding.map(|value| value * scale);
+    layout.margin = layout.margin.map(|value| value * scale);
+    layout
+}
+
 impl RoundTree for BaseDocument {
     fn get_unrounded_layout(&self, node_id: NodeId) -> Layout {
-        *self.node_from_id(node_id).unrounded_layout()
+        scale_layout(
+            *self.node_from_id(node_id).unrounded_layout(),
+            self.viewport.scale(),
+        )
     }
 
     fn set_final_layout(&mut self, node_id: NodeId, layout: &Layout) {
-        *self.node_from_id_mut(node_id).final_layout_mut() = *layout;
+        let scale = self.viewport.scale();
+        let mut layout = scale_layout(*layout, 1.0 / scale);
+        // Border widths are independent lengths already snapped by Stylo.
+        // App-unit quantization can leave them slightly below a device pixel;
+        // rounding box endpoints independently can then drop a pixel from one
+        // side. Preserve their thickness independently of the box's position.
+        layout.border = self
+            .node_from_id(node_id)
+            .unrounded_layout()
+            .border
+            .map(|width| (width * scale).round() / scale);
+        *self.node_from_id_mut(node_id).final_layout_mut() = layout;
     }
 
     fn is_out_of_flow(&self, node_id: NodeId) -> bool {
