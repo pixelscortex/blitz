@@ -172,7 +172,7 @@ impl BaseDocument {
 
                     let output = compute_leaf_layout(
                         inputs,
-                        &node.layout_style(),
+                        &node.layout_style().with_border_scale(self.viewport.scale()),
                         resolve_calc_value,
                         |_known_size, _available_space| taffy::Size {
                             width: cols
@@ -183,7 +183,8 @@ impl BaseDocument {
                     );
                     if inputs.run_mode == RunMode::PerformLayout {
                         let pb = {
-                            let style = node.layout_style();
+                            let style =
+                                node.layout_style().with_border_scale(self.viewport.scale());
                             style
                                 .padding()
                                 .resolve_or_zero(inputs.parent_size.width, resolve_calc_value)
@@ -218,7 +219,7 @@ impl BaseDocument {
                         Some("checkbox") => {
                             return compute_leaf_layout(
                                 inputs,
-                                &node.layout_style(),
+                                &node.layout_style().with_border_scale(self.viewport.scale()),
                                 resolve_calc_value,
                                 |_known_size, _available_space| {
                                     let size = node.layout_style().size();
@@ -241,7 +242,7 @@ impl BaseDocument {
                         None | Some("text" | "password" | "email" | "tel" | "url" | "search") => {
                             return compute_leaf_layout(
                                 inputs,
-                                &node.layout_style(),
+                                &node.layout_style().with_border_scale(self.viewport.scale()),
                                 resolve_calc_value,
                                 |_known_size, _available_space| taffy::Size {
                                     width: match inputs.available_space.width {
@@ -361,7 +362,7 @@ impl BaseDocument {
 
                     return compute_replaced_layout(
                         inputs,
-                        &node.layout_style(),
+                        &node.layout_style().with_border_scale(self.viewport.scale()),
                         resolve_calc_value,
                         &replaced_context,
                     );
@@ -486,7 +487,9 @@ impl LayoutPartialTree for BaseDocument {
     type CustomIdent = Atom;
 
     fn get_core_container_style(&self, node_id: NodeId) -> Self::CoreContainerStyle<'_> {
-        self.node_from_id(node_id).layout_style()
+        self.node_from_id(node_id)
+            .layout_style()
+            .with_border_scale(self.viewport.scale())
     }
 
     fn set_unrounded_layout(&mut self, node_id: NodeId, layout: &Layout) {
@@ -516,7 +519,9 @@ impl LayoutContainingBlock for BaseDocument {
         Self: 'a;
 
     fn get_oof_item_style(&self, node_id: NodeId) -> Self::OofItemStyle<'_> {
-        self.node_from_id(node_id).layout_style()
+        self.node_from_id(node_id)
+            .layout_style()
+            .with_border_scale(self.viewport.scale())
     }
 
     fn clear_hoisted_children(&mut self, node_id: NodeId) {
@@ -693,16 +698,7 @@ impl RoundTree for BaseDocument {
 
     fn set_final_layout(&mut self, node_id: NodeId, layout: &Layout) {
         let scale = self.viewport.scale();
-        let mut layout = scale_layout(*layout, 1.0 / scale);
-        // Border widths are independent lengths already snapped by Stylo.
-        // App-unit quantization can leave them slightly below a device pixel;
-        // rounding box endpoints independently can then drop a pixel from one
-        // side. Preserve their thickness independently of the box's position.
-        layout.border = self
-            .node_from_id(node_id)
-            .unrounded_layout()
-            .border
-            .map(|width| (width * scale).round() / scale);
+        let layout = scale_layout(*layout, 1.0 / scale);
         *self.node_from_id_mut(node_id).final_layout_mut() = layout;
     }
 

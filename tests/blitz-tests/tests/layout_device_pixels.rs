@@ -2,8 +2,9 @@
 //! display scales and document zoom (DioxusLabs/blitz#837).
 
 use blitz_dom::DocumentConfig;
-use blitz_html::HtmlDocument;
+use blitz_html::{HtmlDocument, HtmlProvider};
 use blitz_traits::shell::{ColorScheme, Viewport};
+use std::sync::Arc;
 use taffy::Layout;
 
 fn document(html: &str, scale: f32, zoom: f32) -> HtmlDocument {
@@ -13,6 +14,7 @@ fn document(html: &str, scale: f32, zoom: f32) -> HtmlDocument {
         html,
         DocumentConfig {
             viewport: Some(viewport),
+            html_parser_provider: Some(Arc::new(HtmlProvider) as _),
             ..Default::default()
         },
     );
@@ -41,29 +43,30 @@ const BORDER_HTML: &str = r#"<html><head><style>
 
 #[test]
 fn thin_borders_survive_fractional_display_scales_and_zoom() {
-    for (scale, zoom) in [
-        (1.0, 1.0),
-        (1.25, 1.0),
-        (1.5, 1.0),
-        (2.0, 1.0),
-        (2.75, 1.0),
-        (1.0, 1.25),
-        (2.0, 1.375),
+    // Fixed device-pixel expectations for a 1 CSS px border. Stylo snaps down
+    // to whole device pixels, with a minimum of one for nonzero borders.
+    for (scale, zoom, expected) in [
+        (1.0, 1.0, 1.0),
+        (1.25, 1.0, 1.0),
+        (1.5, 1.0, 1.0),
+        (2.0, 1.0, 2.0),
+        (2.75, 1.0, 2.0),
+        (1.0, 1.25, 1.0),
+        (2.0, 1.375, 2.0),
     ] {
         let doc = document(BORDER_HTML, scale, zoom);
         let id = doc.get_element_by_id("box").unwrap();
         let node = doc.get_node(id).unwrap();
-        let before = node.unrounded_layout().border;
         let after = node.final_layout().border;
         let scale = scale * zoom;
-        for (side, original, rounded) in [
-            ("left", before.left, after.left),
-            ("right", before.right, after.right),
-            ("top", before.top, after.top),
-            ("bottom", before.bottom, after.bottom),
+        for (side, rounded) in [
+            ("left", after.left),
+            ("right", after.right),
+            ("top", after.top),
+            ("bottom", after.bottom),
         ] {
             assert!(rounded > 0.0, "{side} vanished at scale {scale}: {after:?}");
-            close(rounded * scale, (original * scale).round());
+            close(rounded * scale, expected);
         }
     }
 }
@@ -92,20 +95,26 @@ fn adjacent_nested_boxes_share_a_device_pixel_edge() {
 
 #[test]
 fn scale_changes_reround_cached_layout() {
-    let mut doc = document(BORDER_HTML, 1.0, 1.0);
-    for scale in [2.75, 1.25, 1.0] {
-        doc.viewport_mut().hidpi_scale = scale;
+    let html = BORDER_HTML.replace("height: 100vh", "height: 100px");
+    let mut doc = document(&html, 1.0, 1.0);
+    doc.set_incremental_layout(true);
+    for (scale, zoom, expected) in [
+        (2.75, 1.0, 2.0),
+        (1.25, 1.0, 1.0),
+        (1.0, 1.0, 1.0),
+        (2.0, 1.375, 2.0),
+        (1.0, 1.25, 1.0),
+    ] {
+        {
+            let mut viewport = doc.viewport_mut();
+            viewport.hidpi_scale = scale;
+            viewport.zoom = zoom;
+        }
         doc.resolve(0.0);
         let id = doc.get_element_by_id("box").unwrap();
         let node = doc.get_node(id).unwrap();
-        close(
-            node.final_layout().border.left * scale,
-            (node.unrounded_layout().border.left * scale).round(),
-        );
-        close(
-            node.final_layout().border.right * scale,
-            (node.unrounded_layout().border.right * scale).round(),
-        );
+        close(node.final_layout().border.left * scale * zoom, expected);
+        close(node.final_layout().border.right * scale * zoom, expected);
     }
 }
 
@@ -134,15 +143,91 @@ fn zero_width_border_sides_stay_zero() {
         <div id="box" style="width:100px; height:40px; border:1px solid;
           border-top-width:0; border-left-width:2px; padding:3.2px"></div>
         </body></html>"#;
-    for scale in [1.0, 1.25, 1.5, 2.0, 2.75] {
+    for (scale, left, other) in [
+        (1.0, 2.0, 1.0),
+        (1.25, 2.0, 1.0),
+        (1.5, 3.0, 1.0),
+        (2.0, 4.0, 2.0),
+        (2.75, 5.0, 2.0),
+    ] {
         let doc = document(html, scale, 1.0);
         let id = doc.get_element_by_id("box").unwrap();
         let node = doc.get_node(id).unwrap();
-        let before = node.unrounded_layout().border;
         let after = node.final_layout().border;
         assert_eq!(after.top, 0.0);
-        close(after.left * scale, (before.left * scale).round());
-        close(after.right * scale, (before.right * scale).round());
-        close(after.bottom * scale, (before.bottom * scale).round());
+        close(after.left * scale, left);
+        close(after.right * scale, other);
+        close(after.bottom * scale, other);
+    }
+}
+
+#[test]
+fn painted_borders_keep_their_thickness_with_and_without_children() {
+    for display in ["block", "flex", "grid", "table"] {
+        for with_child in [false, true] {
+            check_painted_borders(display, with_child);
+        }
+    }
+}
+
+fn check_painted_borders(display: &str, with_child: bool) {
+    use anyrender::render_to_buffer;
+    use anyrender_vello_cpu::VelloCpuImageRenderer;
+    use blitz_paint::paint_scene;
+
+    let mut html = BORDER_HTML
+        .replace("113px", "44px")
+        .replace("height: 44px", "height: 24px")
+        .replace("#999", "red")
+        .replace(
+            "box-sizing: border-box",
+            &format!("display: {display}; box-sizing: border-box"),
+        );
+    if with_child {
+        html = html.replace(
+            "<div id=\"box\"></div>",
+            "<div id=\"box\"><div style=\"width:100%;height:100%;background:blue\"></div></div>",
+        );
+    }
+    if display == "table" {
+        html = html.replace("display: table;", "display: table; border-spacing: 0;");
+        html = html
+            .replace(
+                "<div id=\"box\">",
+                "<table id=\"box\"><tbody><tr><td style=\"padding:0\">",
+            )
+            .replace("</div></body>", "</td></tr></tbody></table></body>");
+    }
+    let mut doc = document(&html, 2.75, 1.0);
+    doc.set_viewport(Viewport::new(264, 176, 2.75, ColorScheme::Light));
+    doc.resolve(0.0);
+    let buffer = render_to_buffer::<VelloCpuImageRenderer, _>(
+        |scene| paint_scene(scene, &mut doc, 2.75, 264, 176, 0, 0),
+        264,
+        176,
+    );
+    if with_child {
+        let center = (88 * 264 + 132) * 4;
+        assert!(
+            buffer[center + 2] > 200 && buffer[center] < 50,
+            "{display}: child background must actually paint"
+        );
+    }
+    let red = |x: usize, y: usize| {
+        let i = (y * 264 + x) * 4;
+        buffer[i] > 200 && buffer[i + 1] < 50 && buffer[i + 2] < 50
+    };
+    // The centered 44x24 CSS px box covers [72,193) x [55,121) device
+    // pixels. Each side must paint two pixels, independently of layout data.
+    for (edge, count) in [
+        ("left", (0..132).filter(|&x| red(x, 88)).count()),
+        ("right", (132..264).filter(|&x| red(x, 88)).count()),
+        ("top", (0..88).filter(|&y| red(132, y)).count()),
+        ("bottom", (88..176).filter(|&y| red(132, y)).count()),
+    ] {
+        assert_eq!(
+            count, 2,
+            "{display}, child={with_child}: {edge} border painted {count} pixels"
+        );
     }
 }

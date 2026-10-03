@@ -188,7 +188,10 @@ pub(crate) fn build_table_context(
         panic!("Ignoring table because it has no styles");
     };
 
-    let mut style = stylo_taffy::to_taffy_style(&stylo_styles);
+    let mut style: taffy::Style<Atom> = root_node
+        .layout_style()
+        .with_border_scale(doc.viewport.scale())
+        .into();
     style.item_is_table = true;
     // Use `dense` row-flow so that each cell scans the row from its
     // leftmost column for the first free track. Without `dense`,
@@ -586,7 +589,10 @@ fn collect_table_cells(
                 .and_then(|val| val.parse::<u16>().ok())
                 .map(|v| v.clamp(1, 65534))
                 .unwrap_or(1);
-            let mut style = stylo_taffy::to_taffy_style(stylo_style);
+            let mut style: taffy::Style<Atom> = node
+                .layout_style()
+                .with_border_scale(doc.viewport.scale())
+                .into();
             let col = cursor.next_free();
 
             // In the collapsed borders model the borders are laid out as gutters between

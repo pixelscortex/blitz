@@ -30,12 +30,24 @@ pub struct TaffyStyloStyle<T: Deref<Target = ComputedValues>> {
     pub style: T,
     /// Extra node-derived flags that are not part of the stylo style
     pub flags: StyleFlags,
+    border_scale: Option<f32>,
 }
 
 impl<T: Deref<Target = ComputedValues>> TaffyStyloStyle<T> {
     /// Create a new [`TaffyStyloStyle`] from a stylo style and [`StyleFlags`]
     pub fn new(style: T, flags: StyleFlags) -> Self {
-        Self { style, flags }
+        Self {
+            style,
+            flags,
+            border_scale: None,
+        }
+    }
+
+    /// Restore device-pixel border lengths lost to Stylo app-unit quantization
+    /// before layout, so children and content boxes use the same border widths.
+    pub fn with_border_scale(mut self, scale: f32) -> Self {
+        self.border_scale = Some(scale);
+        self
     }
 }
 
@@ -45,6 +57,7 @@ impl<T: Deref<Target = ComputedValues>> From<T> for TaffyStyloStyle<T> {
         Self {
             style: value,
             flags: StyleFlags::empty(),
+            border_scale: None,
         }
     }
 }
@@ -53,6 +66,7 @@ impl<T: Deref<Target = ComputedValues>> From<T> for TaffyStyloStyle<T> {
 impl<T: Deref<Target = ComputedValues>> From<TaffyStyloStyle<T>> for taffy::Style<Atom> {
     fn from(value: TaffyStyloStyle<T>) -> Self {
         let mut style = convert::to_taffy_style(&value.style);
+        style.border = taffy::CoreStyle::border(&value);
         style.item_is_replaced = value.flags.contains(StyleFlags::IS_REPLACED);
         style
     }
@@ -197,6 +211,12 @@ impl<T: Deref<Target = ComputedValues>> taffy::CoreStyle for TaffyStyloStyle<T> 
                 border_styles.border_bottom_style,
             ),
         }
+        .map(|width| match self.border_scale {
+            Some(scale) => {
+                taffy::style_helpers::length((width.into_raw().value() * scale).round() / scale)
+            }
+            None => width,
+        })
     }
 }
 
