@@ -1,0 +1,27 @@
+examples/custom_widget.rs
+  s_a1de94b2faca67::t_e3625843fb9f93 2,118,128
+packages/blitz-dom/src/events/mod.rs
+  s_a1de94b2faca67::t_cc38280e5d127f 151-153,166-180,182
+packages/blitz-dom/src/lib.rs
+  s_a1de94b2faca67::t_3661100c781849 90
+packages/blitz-dom/src/node/custom_widget.rs
+  s_a1de94b2faca67::t_740edaadf7433b 109-114,116,155-164
+packages/blitz-dom/src/node/mod.rs
+  s_a1de94b2faca67::t_c362585e197f0a 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "99c448f4d0100c604d0e807ddba429de60680cb0",
+  "prompts": {},
+  "sessions": {
+    "s_a1de94b2faca67": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6d28824c-fa18-498d-804f-46db42bcc5dd",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "JustKira <shighgamerhg@gmail.com>"
+    }
+  }
+}
