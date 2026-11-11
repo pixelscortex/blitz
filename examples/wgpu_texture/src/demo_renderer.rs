@@ -41,9 +41,6 @@ impl Widget for DemoWidget {
         true
     }
 
-    fn handle_event(&mut self, event: &blitz_traits::events::UiEvent) {
-        let _ = event;
-    }
 
     fn paint(
         &mut self,
