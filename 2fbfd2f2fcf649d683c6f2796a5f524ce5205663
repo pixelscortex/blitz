@@ -1,0 +1,36 @@
+tests/blitz-tests/tests/layout_device_pixels.rs
+  s_56a31f10204f46::t_c649af72fbd8f6 5,7,17,46-55,62-66,69,98-112,116-117,146-152,158-181,183-184
+  s_e3e0906197a2a8::t_b43b3134dc6241 182,185-231
+packages/blitz-dom/src/document.rs
+  s_e3e0906197a2a8::t_a15ca98d9d03f9 2067-2069,2074-2076
+packages/blitz-dom/src/layout/mod.rs
+  s_e3e0906197a2a8::t_6489a988e27003 175,186-187,222,245,365,490-492,522-524,701
+packages/blitz-dom/src/layout/table.rs
+  s_e3e0906197a2a8::t_9d56f8e8b527b9 191-194,592-595
+packages/stylo_taffy/src/wrapper.rs
+  s_e3e0906197a2a8::t_c507480b58b13b 33,39-50,60,69,214-219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "2fbfd2f2fcf649d683c6f2796a5f524ce5205663",
+  "prompts": {},
+  "sessions": {
+    "s_56a31f10204f46": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f553-fc41-7582-b74a-cb31ada43ac3",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "JustKira <shighgamerhg@gmail.com>"
+    },
+    "s_e3e0906197a2a8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ff95-1349-7432-a8e0-016339c7ced9",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "JustKira <shighgamerhg@gmail.com>"
+    }
+  }
+}

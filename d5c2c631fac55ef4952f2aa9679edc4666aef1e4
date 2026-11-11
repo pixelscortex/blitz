@@ -1,0 +1,25 @@
+packages/blitz-dom/src/layout/mod.rs
+  s_56a31f10204f46::t_a1ab0067e1de5a 695-700
+  s_56a31f10204f46::t_b0b198cff1a163 672-685,688
+  s_56a31f10204f46::t_6f17a1e127381d 689-691,701-706
+tests/blitz-tests/tests/layout_device_pixels.rs
+  s_56a31f10204f46::t_7bfb6274710437 100-137
+  s_56a31f10204f46::t_e7a585682f4f7e 1-99
+  s_56a31f10204f46::t_06ef100e576fb1 138-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d5c2c631fac55ef4952f2aa9679edc4666aef1e4",
+  "prompts": {},
+  "sessions": {
+    "s_56a31f10204f46": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0f553-fc41-7582-b74a-cb31ada43ac3",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "JustKira <shighgamerhg@gmail.com>"
+    }
+  }
+}
