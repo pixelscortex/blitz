@@ -106,8 +106,14 @@ pub trait Widget {
     }
 
     /// Handle input events (mouse, keyboard, etc)
-    fn handle_event(&mut self, event: &UiEvent) {
+    ///
+    /// Return [`EventResult::Ignored`] to let Blitz run the element's default
+    /// action (focus, `:active`, click, scrolling, focus navigation), as it
+    /// would without the widget. The default implementation consumes every
+    /// event, which is how widgets behaved before this result existed.
+    fn handle_event(&mut self, event: &UiEvent) -> EventResult {
         let _ = event;
+        EventResult::Consumed
     }
 
     /// The widget's intrinsic dimensions: an intrinsic width, height and
@@ -144,6 +150,16 @@ pub trait Widget {
 
     // TODO: simpler layout mode?
     // fn layout(&mut self, inputs: LayoutInput, styles: &ComputedStyles) -> LayoutOutput;
+}
+
+/// Whether a widget used an input event (see [`Widget::handle_event`]).
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
+pub enum EventResult {
+    /// The widget used the event: the element's default action is skipped.
+    #[default]
+    Consumed,
+    /// The widget did not use the event: the element's default action runs.
+    Ignored,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

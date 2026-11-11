@@ -15,7 +15,7 @@ mod text;
 pub use attributes::{Attribute, Attributes};
 #[cfg(feature = "custom-widget")]
 pub use custom_widget::{
-    ComputedStyles, CustomWidgetData, CustomWidgetStatus, ProxyRenderContext, Widget,
+    ComputedStyles, CustomWidgetData, CustomWidgetStatus, EventResult, ProxyRenderContext, Widget,
 };
 pub use element::{
     CanvasData, DocumentData, ElementData, ImageData, ImageResourceData, LayoutData,

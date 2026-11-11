@@ -148,7 +148,9 @@ pub(crate) fn handle_dom_event<F: FnMut(DomEvent)>(
         return;
     }
 
-    // Handle event forwarding for custom widget
+    // Handle event forwarding for custom widget. An event the widget ignores, and an
+    // event with no `UiEvent` form (click, focus, enter/leave), falls through to the
+    // element's default action below, as if the element had no widget.
     #[cfg(feature = "custom-widget")]
     if let Some(widget_data) = node
         .element_data_mut()
@@ -161,21 +163,24 @@ pub(crate) fn handle_dom_event<F: FnMut(DomEvent)>(
         let viewport_scroll = Point { x: 0.0, y: 0.0 };
         let ui_event = map_dom_event_to_ui_event(event, pos, viewport_scroll);
 
-        if let Some(ui_event) = ui_event {
-            widget_data.widget.handle_event(&ui_event);
-        }
+        let result = match ui_event {
+            Some(ui_event) => widget_data.widget.handle_event(&ui_event),
+            None => crate::node::EventResult::Ignored,
+        };
 
-        if set_focus {
-            generate_focus_events(
-                doc,
-                &mut |doc| {
-                    doc.set_focus_to(target_node_id);
-                },
-                &mut dispatch_event,
-            );
-        }
+        if result == crate::node::EventResult::Consumed {
+            if set_focus {
+                generate_focus_events(
+                    doc,
+                    &mut |doc| {
+                        doc.set_focus_to(target_node_id);
+                    },
+                    &mut dispatch_event,
+                );
+            }
 
-        return;
+            return;
+        }
     }
 
     match &event.data {
